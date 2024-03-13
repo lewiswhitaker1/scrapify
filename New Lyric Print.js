@@ -344,7 +344,7 @@ async function fetchLatestReleaseVersion() {
 
 async function checkForUpdates() {
   const latestVersion = await fetchLatestReleaseVersion();
-  const currentVersion = '1.0.0';
+  const currentVersion = '1.1.0';
 
   if (latestVersion !== currentVersion) {
     console.log('Update available');
