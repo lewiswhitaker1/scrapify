@@ -2,10 +2,8 @@ const fetch = require('node-fetch');
 const { writeFile, mkdir } = require('fs').promises;
 const fs = require('fs');
 const path = require('path');
-const execFile = require('child_process').execFile;
 
 const appPath = path.join(process.env.HOME || process.env.USERPROFILE, "AppData", "Roaming", "scrapify");
-const releasesUrl = "https://api.github.com/repos/lewiswhitaker1/scrapify/releases/latest";
 const configPath = path.join(appPath, "config.json");
 const tokenCachePath = path.join(appPath, '.cache');
 const statsPath = path.join(appPath, '.stats');
@@ -14,12 +12,6 @@ let CONFIG;
 const spotifyTrackURL = process.argv[2];
 
 async function init() {
-  const isUpdating = await checkForUpdates();
-  if(isUpdating)
-  {
-    console.log("App is updating and will restart shortly.");
-    return;
-  }
   CONFIG = await loadConfig();
   if (!spotifyTrackURL) {
     console.error(colors.red`Please provide a valid Spotify track URL as an argument.`);
@@ -183,7 +175,6 @@ async function searchGeniusForLyrics(songTitle, artistName, folderPath) {
     try {
       data = await response.json();
     } catch (error) {
-      // Handle invalid JSON response
       console.log(colors.red`Genius API didn't return JSON, the API may be down. Writing placeholder lyrics file.`);
       await writeFile(path.join(folderPath, 'lyrics.txt'), "Genius API didn't return JSON, the API may be down");
       throw new Error("Genius API didn't return proper format, please check if it is down");
@@ -329,73 +320,6 @@ function colorize(colorCode) {
       return `\x1b[${colorCode}m${message}\x1b[0m`;
     }
   };
-}
-
-async function fetchLatestReleaseVersion() {
-  const url = 'https://api.github.com/repos/lewiswhitaker1/scrapify/releases/latest';
-  const response = await fetch(url, {
-      headers: {
-          'User-Agent': 'node.js',
-      },
-  });
-  const data = await response.json();
-  return data.tag_name;
-}
-
-async function checkForUpdates() {
-  const latestVersion = await fetchLatestReleaseVersion();
-  const currentVersion = '1.1.0';
-
-  if (latestVersion !== currentVersion) {
-    console.log('Update available');
-
-    const releasesUrl = "https://api.github.com/repos/lewiswhitaker1/scrapify/releases/latest";
-
-    try {
-      const response = await fetch(releasesUrl, {
-        headers: { 'Accept': 'application/vnd.github.v3+json' }
-      });
-      const data = await response.json();
-
-      const asset = data.assets.find(asset => asset.name.endsWith('.exe'));
-
-      if (asset) {
-        console.log(`Downloading ${asset.name}...`);
-        await downloadUpdate(asset.browser_download_url, asset.name);
-      }
-    } catch (error) {
-      console.error("Failed to check for updates:", error);
-    }
-    const args = [path.join(process.env.HOME || process.env.USERPROFILE, "Desktop", "lyric_print.exe"), path.join(appPath, "Scrapify.exe"), spotifyTrackURL]
-    execFile(path.join(appPath, "scrapify_updater.exe"), args, (error, stdout, stderr) => {
-      if (error) {
-          console.error(`exec error: ${error}`);
-          return;
-      }
-      if (stderr) {
-          console.error(`stderr: ${stderr}`);
-          return;
-      }
-      console.log(`stdout: ${stdout}`);
-  });
-    return true;
-  } else {
-    console.log('You are on the latest version');
-    return false;
-  }
-}
-
-async function downloadUpdate(url, fileName) {
-
-  const response = await fetch(url);
-  if (response.ok) {
-      const buffer = await response.buffer();
-      const tempPath = path.join(appPath, fileName);
-      await writeFile(tempPath, buffer);
-      console.log("Downloaded new version:", fileName);
-  } else {
-      throw new Error('Failed to download update');
-  }
 }
 
 init().catch(console.error);
